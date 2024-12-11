@@ -12,11 +12,12 @@ class ZoomView {
     stop() {
         this.#view = null;
     }
+    static keyfunc = (l, x, y) => `${l}-${x}-${y}`;
     async prepare(view) {
         this.redraw = drawImage;
         let {cutx, cuty, cutw, cuth} = view;
         const curr = this.#view = {cutx, cuty, cutw, cuth};
-        const {Width, Height, TileSize, MaxLevel, /*Key,*/Load, FillStyle} = this.#cfg;
+        const {Width, Height, TileSize, MaxLevel, Load, FillStyle} = this.#cfg;
         const canvaswidth = this.#canvas.width;
         const canvasheight = this.#canvas.height;
 
@@ -62,16 +63,14 @@ class ZoomView {
                         let clip = TileSize;
                         let mask = 0;
                         let lvl = level;
-                        let key = dizcfg.Key(lvl, ex, ey);
-                        let tile = dizcache.get(key);
+                        let tile = dizcache.get(ZoomView.keyfunc(lvl, ex, ey));
                         while (!tile && lvl < MaxLevel) {
                             clip /= 2;
                             mask = (mask << 1) + 1;
                             ex >>= 1;
                             ey >>= 1;
                             lvl++;
-                            key = dizcfg.Key(lvl, ex, ey);
-                            tile = dizcache.get(key);
+                            tile = dizcache.get(ZoomView.keyfunc(lvl, ex, ey));
                         }
                         if (tile)
                             ctx.drawImage(tile, (ox & mask) * clip, (oy & mask) * clip, clip, clip, x * TileSize, y * TileSize, TileSize, TileSize);
@@ -99,13 +98,13 @@ class ZoomView {
                 let ey = ty + y;
                 if (ex >= 0 && ey >= 0 && ex * TileSize < planewidth && ey * TileSize < planeheight) {
                     let templevel = level;
-                    let key = this.#cfg.Key(level, ex, ey);
+                    let key = ZoomView.keyfunc(level, ex, ey);
                     while (!this.#cache.get(key) && templevel < MaxLevel) {
-                        loadmap.set(key, {ex, ey, key, level: templevel});
+                        loadmap.set(key, {level: templevel, ex, ey});
                         ex >>= 1;
                         ey >>= 1;
                         templevel++;
-                        key = this.#cfg.Key(templevel, ex, ey);
+                        key = ZoomView.keyfunc(templevel, ex, ey);
                     }
                 }
             }
@@ -117,9 +116,9 @@ class ZoomView {
         while ((loading.length || queued.size) && this.#view === curr) {
             while (loading.length && queued.size < 10) {
                 const promise = new Promise(async resolve => {
-                    const {ex, ey, key} = loading.pop();
-                    const tile = await Load(key, ex, ey);
-                    this.#cache.put(key, tile);
+                    const {level, ex, ey} = loading.pop();
+                    const tile = await Load(level, ex, ey);
+                    this.#cache.put(ZoomView.keyfunc(level, ex, ey), tile);
                     if (this.#view === curr) {
                         drawImage();
                     }
@@ -130,15 +129,6 @@ class ZoomView {
             }
             await Promise.race(queued);
         }
-
-//        while(loading.length && this.#view === curr) {
-//            const {ex,ey,key} = loading.pop();
-//            const tile = await Load(key, ex, ey);
-//            this.#cache.put(key, tile);
-//            if (this.#view === curr) {
-//                drawImage();
-//            }
-//        }
     }
 }
 
