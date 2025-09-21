@@ -17,7 +17,7 @@ class ZoomView {
         this.redraw = drawImage;
         let {cutx, cuty, cutw, cuth} = view;
         const curr = this.#view = {cutx, cuty, cutw, cuth};
-        const {Width, Height, TileSize, MaxLevel, Load, FillStyle} = this.#cfg;
+        const {Width, Height, TileSize, MaxLevel, Load, FillStyle, Transparency} = this.#cfg;
         const canvaswidth = this.#canvas.width;
         const canvasheight = this.#canvas.height;
 
@@ -53,6 +53,8 @@ class ZoomView {
         const dizcfg = this.#cfg;
         const dizcache = this.#cache;
         function drawImage() {
+            if(Transparency)
+                ctx.clearRect(0, 0, image.width, image.height);
             for (let y = 0; y < th; y++)
                 for (let x = 0; x < tw; x++) {
                     const ox = tx + x;
@@ -77,9 +79,12 @@ class ZoomView {
                     }
                 }
             mainctx.reset();
-            mainctx.globalAlpha = 1;
-            mainctx.fillStyle = FillStyle || "#FFFFFF";
-            mainctx.fillRect(0, 0, canvaswidth, canvasheight);
+            if(Transparency)
+                mainctx.clearRect(0, 0, canvaswidth, canvasheight);
+            else {
+                mainctx.fillStyle = FillStyle || "#FFFFFF";
+                mainctx.fillRect(0, 0, canvaswidth, canvasheight);
+            }
             mainctx.save();
             mainctx.clip(cliprect);
             mainctx.drawImage(image, cutx, cuty, cutw, cuth, 0, 0, canvaswidth, canvasheight);
